@@ -1,0 +1,6 @@
+{
+  "name": "Fabrika Arıza Takip TV Paneli",
+  "description": "Android TV ve fabrika panoları için online gerçek zamanlı arıza ve bakım takip kontrol merkezi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

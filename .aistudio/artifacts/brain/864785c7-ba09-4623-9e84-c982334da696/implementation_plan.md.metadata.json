@@ -1,0 +1,6 @@
+{
+  "summary": "Arıza takip ekranında kartlı grid yerleşiminden kompakt satır (liste) düzenine geçiş ve yeni gelen arızaların en üstte kronolojik olarak listelenmesi için kapsamlı uygulama planı. Gereksiz başlık ve açıklama metinlerinin kaldırılarak ekran verimliliğinin artırılması planlandı.",
+  "updatedAt": "2026-10-19T13:11:16.829889121Z",
+  "requestFeedback": true,
+  "userFacing": true
+}
