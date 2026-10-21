@@ -163,10 +163,10 @@ export const ArizaCard: React.FC<ArizaCardProps> = ({
           </div>
         )}
 
-        {/* ROW 5: Açıklama (Kompakt 1-2 satır) */}
-        <div className="bg-white/60 px-2 py-1 rounded-md border border-black/10 text-[11px] text-slate-950 leading-tight">
-          <span className="font-bold text-slate-800 text-[10px]">Açıklama: </span>
-          <span className="font-medium line-clamp-1 group-hover:line-clamp-2 transition-all">
+        {/* ROW 5: İş Açıklaması (Kalın ve 1 punto büyük) */}
+        <div className="bg-white/70 px-2.5 py-1 rounded-md border border-black/15 text-[12px] sm:text-[12.5px] text-slate-950 leading-tight">
+          <span className="font-black text-slate-950 text-[11px]">İş Açıklaması: </span>
+          <span className="font-black line-clamp-1 group-hover:line-clamp-2 transition-all">
             {ariza.description || 'Açıklama belirtilmemiş.'}
           </span>
         </div>

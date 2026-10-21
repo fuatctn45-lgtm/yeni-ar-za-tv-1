@@ -95,27 +95,27 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
     };
   }
 
+  // Excel benzeri ızgara / hücre kenarlık çizgisi (Çizgili tablo yapısı)
+  const cellBorder = isDark ? 'border-white/25' : 'border-black/25';
+
   return (
-    <div
+    <tr
       onClick={() => onSelect(ariza)}
       style={{ backgroundColor: jobConfig.hex }}
-      className={`group w-full ${
-        isOld ? 'h-7 sm:h-7.5' : 'h-8 sm:h-8.5'
-      } rounded-none border-b border-black/40 hover:brightness-95 active:brightness-90 transition-all duration-100 cursor-pointer px-2 sm:px-3 flex items-center justify-between gap-1.5 sm:gap-2 select-none relative whitespace-nowrap overflow-hidden text-[11px] font-bold ${textColor} ${
+      className={`group cursor-pointer hover:brightness-95 active:brightness-90 transition-all select-none ${textColor} ${
         isNewArrival ? 'ring-2 ring-inset ring-red-600' : ''
       }`}
     >
-      {/* Sol Kısım: Durum + Makine İsmi + Ayırıcı + Açıklama + Varsa Log Özeti */}
-      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
-        {/* Durum Alanı (Veritabanı Durumuna Birebir Sadık Dikkat Çekici Tasarım) */}
-        <div className="shrink-0 flex items-center w-40 sm:w-44 md:w-48">
+      {/* 1. SÜTUN: DURUM (Excel hücre çizgili) */}
+      <td className={`border ${cellBorder} px-2 py-0.5 whitespace-nowrap align-middle`}>
+        <div className="flex items-center gap-1.5">
           {isNewArrival && (
-            <span className="text-[10px] font-black uppercase mr-1 bg-red-600 text-white px-1.5 py-0.5 animate-pulse rounded-xs shadow-xs shrink-0">
+            <span className="text-[9px] font-black uppercase mr-1 bg-red-600 text-white px-1.5 py-0.5 animate-pulse rounded-xs shadow-xs shrink-0 leading-none">
               YENİ
             </span>
           )}
           <div
-            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs font-black text-[10px] sm:text-[11px] tracking-wide uppercase max-w-full ${statusBadgeStyle.container}`}
+            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs font-black text-[10px] sm:text-[11px] tracking-wide uppercase leading-tight ${statusBadgeStyle.container}`}
           >
             <span className="relative flex h-2 w-2 shrink-0">
               {statusBadgeStyle.ping && (
@@ -123,84 +123,86 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
               )}
               <span className={`relative inline-flex rounded-full h-2 w-2 ${statusBadgeStyle.dot}`} />
             </span>
-            <span className="truncate">{statusText}</span>
+            <span className="whitespace-nowrap">{statusText}</span>
           </div>
         </div>
+      </td>
 
-        {/* Ayırıcı */}
-        <span className={`text-[11px] font-bold shrink-0 select-none ${dividerColor}`}>
-          |
-        </span>
-
-        {/* MAKİNE İSMİ (Siyah kutu yok, doğrudan düz yazı) */}
+      {/* 2. SÜTUN: MAKİNE (Excel hücre çizgili, kalın ve 1 punto büyük, tam görünür) */}
+      <td className={`border ${cellBorder} px-2.5 py-0.5 whitespace-nowrap align-middle`}>
         <span
-          className="text-[11px] font-bold uppercase tracking-tight shrink-0 truncate w-36 sm:w-48 lg:w-56"
+          className="text-[12.5px] sm:text-[13px] font-black uppercase tracking-tight block whitespace-nowrap"
           title={ariza.machine}
         >
           {ariza.machine}
         </span>
+      </td>
 
-        {/* Ayırıcı */}
-        <span className={`text-[11px] font-bold shrink-0 select-none ${dividerColor}`}>
-          |
-        </span>
-
-        {/* ARIZA AÇIKLAMASI (Siyah kutu yok, doğrudan düz yazı) */}
+      {/* 3. SÜTUN: İŞ AÇIKLAMASI (Excel hücre çizgili, kalın ve 1 punto büyük, tam görünür) */}
+      <td className={`border ${cellBorder} px-2.5 py-0.5 whitespace-nowrap align-middle`}>
         <span
-          className={`text-[11px] font-bold truncate min-w-0 flex-1 ${mutedTextColor}`}
+          className={`text-[12.5px] sm:text-[13px] font-black tracking-tight block whitespace-nowrap ${mutedTextColor}`}
           title={ariza.description}
         >
           {ariza.description || 'Açıklama girilmedi'}
         </span>
-      </div>
+      </td>
 
-      {/* Sağ Kısım: Arıza Türü + Ana Bakımcı + Yardımcı Bakımcı + Log + Geçen Süre */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0 overflow-hidden text-[11px] font-bold">
-        {/* Arıza Türü (Siyah kutucuk yok, logo yok) */}
-        <span className="text-[11px] font-bold uppercase tracking-wider shrink-0 hidden md:inline">
+      {/* 4. SÜTUN: ARIZA TÜRÜ (Excel hücre çizgili, tam görünür) */}
+      <td className={`border ${cellBorder} px-2.5 py-0.5 whitespace-nowrap align-middle`}>
+        <span
+          className="text-[11px] font-bold uppercase tracking-wider block whitespace-nowrap"
+          title={ariza.jobType || jobConfig.name}
+        >
           {ariza.jobType || jobConfig.name}
         </span>
+      </td>
 
-        {/* Ana Bakımcı (Siyah kutucuk yok, logo yok) */}
-        {anaBakimci ? (
-          <span
-            className="hidden sm:inline text-[11px] font-bold uppercase truncate max-w-[110px] lg:max-w-[140px]"
-            title={`Ana Bakımcı: ${anaBakimci}`}
-          >
-            Ana: {anaBakimci}
-          </span>
-        ) : ariza.userName ? (
-          <span className="hidden sm:inline text-[11px] font-bold truncate max-w-[90px]" title={`Bildiren: ${ariza.userName}`}>
-            {ariza.userName}
-          </span>
-        ) : null}
+      {/* 5. SÜTUN: BAKIMCILAR (ANA / YRD) (Excel hücre çizgili) */}
+      <td className={`border ${cellBorder} px-2.5 py-0.5 whitespace-nowrap align-middle text-[11px] font-bold`}>
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          {anaBakimci ? (
+            <span className="uppercase whitespace-nowrap" title={`Ana Bakımcı: ${anaBakimci}`}>
+              Ana: {anaBakimci}
+            </span>
+          ) : ariza.userName ? (
+            <span className="whitespace-nowrap" title={`Bildiren: ${ariza.userName}`}>
+              {ariza.userName}
+            </span>
+          ) : (
+            <span className="opacity-60 font-normal">-</span>
+          )}
 
-        {/* Yardımcı Bakımcı (Siyah kutucuk yok, logo yok) */}
-        {helpersList.length > 0 && (
-          <span
-            className="hidden md:inline text-[11px] font-bold uppercase truncate max-w-[110px] lg:max-w-[140px] opacity-90"
-            title={`Yardımcı Bakımcı: ${helpersList.join(', ')}`}
-          >
-            Yrd: {helpersList.join(', ')}
-          </span>
-        )}
+          {helpersList.length > 0 && (
+            <span
+              className="uppercase opacity-90 whitespace-nowrap"
+              title={`Yardımcı Bakımcı: ${helpersList.join(', ')}`}
+            >
+              (Yrd: {helpersList.join(', ')})
+            </span>
+          )}
+        </div>
+      </td>
 
-        {/* Süre ve Saat Sayacı (Siyah kutucuk yok, saat logosu yok) */}
+      {/* 6. SÜTUN: SÜRE / SAAT (Excel hücre çizgili) */}
+      <td className={`border ${cellBorder} px-2.5 py-0.5 whitespace-nowrap align-middle text-[11px] font-mono font-bold`}>
         <div
-          className="flex items-center gap-1 text-[11px] font-mono font-bold shrink-0 text-right w-24 sm:w-28 justify-end"
+          className="flex items-center gap-1.5 whitespace-nowrap"
           title={`Kayıt: ${formatDateFull(ariza.createdAt)}`}
         >
           <span>{elapsed.text}</span>
-          <span className={`text-[11px] font-sans border-l pl-1 hidden sm:inline ${dividerColor}`}>
+          <span className={`text-[11px] font-sans border-l pl-1.5 hidden sm:inline ${dividerColor}`}>
             {timeOnly}
           </span>
         </div>
+      </td>
 
-        {/* Sadece aktif arızalarda inceleme oku; eski arızalarda hiçbir logo/ok yok */}
+      {/* 7. SÜTUN: İŞLEM / DETAY OKU */}
+      <td className={`border ${cellBorder} px-1.5 py-0.5 text-center align-middle w-8 whitespace-nowrap`}>
         {!isOld && (
-          <ChevronRight className={`w-3 h-3 transition-all shrink-0 ${isDark ? 'text-white/80' : 'text-black/60'}`} />
+          <ChevronRight className={`w-3.5 h-3.5 mx-auto transition-transform group-hover:translate-x-0.5 opacity-70 group-hover:opacity-100 ${isDark ? 'text-white' : 'text-black'}`} />
         )}
-      </div>
-    </div>
+      </td>
+    </tr>
   );
 };

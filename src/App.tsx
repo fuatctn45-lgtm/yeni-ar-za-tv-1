@@ -503,80 +503,109 @@ export default function App() {
         </div>
       )}
 
-      {/* TABLO SÜTUN BAŞLIKLARI (Köşeli, Kompakt, Hizalı) */}
-      <div className="bg-slate-900 border-b border-black text-[11px] font-bold uppercase text-slate-300 px-2 sm:px-3 py-1 flex items-center justify-between gap-1.5 sm:gap-2 rounded-none shrink-0 z-10 shadow-xs">
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 text-[11px] font-bold text-slate-400 truncate">
-          <span className="w-40 sm:w-44 md:w-48 shrink-0 text-amber-300 font-black tracking-wide">DURUM</span>
-          <span>|</span>
-          <span className="w-36 sm:w-48 lg:w-56 shrink-0 truncate text-slate-300">MAKİNE</span>
-          <span>|</span>
-          <span className="truncate text-slate-400">ARIZA AÇIKLAMASI</span>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-right text-[11px] font-bold text-slate-400 uppercase">
-          <span className="hidden md:inline">ARIZA TÜRÜ</span>
-          <span className="hidden sm:inline">BAKIMCILAR (ANA / YRD)</span>
-          <span className="w-24 text-right">SÜRE / SAAT</span>
-        </div>
-      </div>
-
-      {/* ANA SATIR LİSTESİ: KAPATILAN ARIZALAR EKRANDA GÖSTERİLMEZ (SADECE AÇIKLAR LİSTELENİR) */}
+      {/* ANA TABLO LİSTESİ: EXCEL GİBİ ÇİZGİLİ, EN GENİŞE GÖRE OTO UYARLANAN HİZALI SÜTUNLAR */}
       <main
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto bg-slate-950 flex flex-col scroll-smooth"
+        className="flex-1 overflow-auto bg-slate-950 flex flex-col justify-between scroll-smooth"
       >
-        {/* 1. AKTİF / BUGÜNÜN AÇIK ARIZALARI BÖLÜMÜ (EN ÜSTTE) */}
-        <div className="w-full">
-          {activeArizalar.length === 0 ? (
-            <div className="p-4 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-950">
-              Şu an bugüne ait bekleyen veya işlem gören açık arıza kaydı bulunmuyor.
-            </div>
-          ) : (
-            <div className="flex flex-col w-full divide-y-0">
-              {activeArizalar.map((ariza) => (
-                <ArizaRow
-                  key={ariza.id}
-                  ariza={ariza}
-                  isOld={false}
-                  isNewArrival={sessionNewArrivalIds.has(ariza.id)}
-                  onSelect={(a) => setSelectedAriza(a)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <div className="w-full min-w-max flex-1 flex flex-col justify-between min-h-full">
+          {/* 1. AKTİF / BUGÜNÜN AÇIK ARIZALARI TABLOSU (EN ÜSTTE) */}
+          <div className="w-full">
+            <table className="w-full border-collapse border border-slate-700/80 text-left table-auto">
+              {/* EXCEL BAŞLIK SATIRI (Sabit Yapışkan, Çizgili Hücreler, Daraltılmış Yükseklik) */}
+              <thead className="sticky top-0 z-20 bg-slate-900 shadow-md">
+                <tr className="text-slate-300 uppercase text-[10.5px] font-bold leading-none">
+                  <th className="border border-slate-700/90 px-2 py-1 text-left text-amber-300 font-black tracking-wide whitespace-nowrap bg-slate-900">
+                    DURUM
+                  </th>
+                  <th className="border border-slate-700/90 px-2.5 py-1 text-left text-white font-black tracking-tight text-[11.5px] whitespace-nowrap bg-slate-900">
+                    MAKİNE
+                  </th>
+                  <th className="border border-slate-700/90 px-2.5 py-1 text-left text-white font-black tracking-tight text-[11.5px] whitespace-nowrap bg-slate-900">
+                    İŞ AÇIKLAMASI
+                  </th>
+                  <th className="border border-slate-700/90 px-2.5 py-1 text-left text-slate-300 font-bold whitespace-nowrap bg-slate-900">
+                    ARIZA TÜRÜ
+                  </th>
+                  <th className="border border-slate-700/90 px-2.5 py-1 text-left text-slate-300 font-bold whitespace-nowrap bg-slate-900">
+                    BAKIMCILAR (ANA / YRD)
+                  </th>
+                  <th className="border border-slate-700/90 px-2.5 py-1 text-left text-slate-300 font-bold whitespace-nowrap bg-slate-900">
+                    SÜRE / SAAT
+                  </th>
+                  <th className="border border-slate-700/90 px-1 py-1 text-center text-slate-400 font-bold text-[9px] whitespace-nowrap w-8 bg-slate-900">
+                    DETAY
+                  </th>
+                </tr>
+              </thead>
 
-        {/* 2. DEVREDEN AÇIK ARIZALAR BÖLÜMÜ (ALTA ÇEKİLDİ - 24:00 Öncesinden Devredenler) */}
-        <div className="mt-auto pt-4 border-t-2 border-slate-800 w-full">
-          <div className="bg-slate-900 border-y-2 border-amber-500/50 text-[11px] font-bold uppercase text-amber-400 px-2.5 sm:px-3 py-1 flex items-center justify-between tracking-wider shadow-xs">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span>DEVREDEN ARIZALAR ({devredenArizalar.length} KAYIT)</span>
-              <span className="hidden lg:inline text-[10px] text-amber-300/80 font-semibold normal-case">
-                • Müdahaledekiler En Üstte • 1. Mekanik | 2. Elektrik | 3. İSG | 4. Tekrar Eden | 5. Planlama
-              </span>
-            </div>
-            <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">
-              MÜDAHALE & TÜRE GÖRE SIRALI
-            </span>
+              {/* TABLO GÖVDESİ */}
+              <tbody>
+                {activeArizalar.length === 0 ? (
+                  <tr className="bg-slate-950">
+                    <td
+                      colSpan={7}
+                      className="p-2.5 text-center text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border border-slate-800"
+                    >
+                      Şu an bugüne ait bekleyen veya işlem gören açık arıza kaydı bulunmuyor.
+                    </td>
+                  </tr>
+                ) : (
+                  activeArizalar.map((ariza) => (
+                    <ArizaRow
+                      key={ariza.id}
+                      ariza={ariza}
+                      isOld={false}
+                      isNewArrival={sessionNewArrivalIds.has(ariza.id)}
+                      onSelect={(a) => setSelectedAriza(a)}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
 
-          {devredenArizalar.length === 0 ? (
-            <div className="p-4 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-950">
-              24:00 öncesinden devreden açık arıza bulunmuyor.
+          {/* 2. DEVREDEN AÇIK ARIZALAR TABLOSU (KULLANICI İSTEĞİ: EN ALTA ÇEKİLDİ - mt-auto İLE TABAN HİZASI) */}
+          <div className="mt-auto pt-3 w-full">
+            <div className="bg-slate-900 border-y-2 border-amber-500/80 text-[10.5px] font-bold uppercase text-amber-400 px-2.5 py-0.5 flex items-center justify-between tracking-wider shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-black text-amber-300">
+                  DEVREDEN ARIZALAR ({devredenArizalar.length} KAYIT)
+                </span>
+                <span className="hidden lg:inline text-[9.5px] text-amber-200/90 font-semibold normal-case">
+                  • Müdahaledekiler En Üstte • 1. Mekanik | 2. Elektrik | 3. İSG | 4. Tekrar Eden | 5. Planlama
+                </span>
+              </div>
+              <span className="text-[9.5px] font-mono text-slate-400 hidden sm:inline">
+                MÜDAHALE & TÜRE GÖRE SIRALI
+              </span>
             </div>
-          ) : (
-            <div className="flex flex-col w-full divide-y-0">
-              {devredenArizalar.map((ariza) => (
-                <ArizaRow
-                  key={ariza.id}
-                  ariza={ariza}
-                  isOld={true}
-                  isNewArrival={false}
-                  onSelect={(a) => setSelectedAriza(a)}
-                />
-              ))}
-            </div>
-          )}
+
+            <table className="w-full border-collapse border border-slate-700/80 text-left table-auto">
+              <tbody>
+                {devredenArizalar.length === 0 ? (
+                  <tr className="bg-slate-950">
+                    <td
+                      colSpan={7}
+                      className="p-2.5 text-center text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border border-slate-800"
+                    >
+                      24:00 öncesinden devreden açık arıza bulunmuyor.
+                    </td>
+                  </tr>
+                ) : (
+                  devredenArizalar.map((ariza) => (
+                    <ArizaRow
+                      key={ariza.id}
+                      ariza={ariza}
+                      isOld={true}
+                      isNewArrival={false}
+                      onSelect={(a) => setSelectedAriza(a)}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
 

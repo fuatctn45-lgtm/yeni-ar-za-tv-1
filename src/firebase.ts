@@ -130,6 +130,10 @@ function mapDocToAriza(id: string, data: any): Ariza {
       data.description ||
       data['Tanım'] ||
       data.tanim ||
+      data['işAçıklaması'] ||
+      data['iş açıklaması'] ||
+      data.isAciklamasi ||
+      data.is_aciklamasi ||
       data.aciklama ||
       data.arizaAciklamasi ||
       data.aciklamasi ||
