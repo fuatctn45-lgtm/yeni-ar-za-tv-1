@@ -3,7 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { Ariza } from '../types';
 import { formatElapsedTime, formatTimeOnly, formatDateFull } from '../utils/date';
 import { getJobTypeConfig } from '../utils/jobColors';
-import { getActiveTechnicians, isFaultClosed } from '../utils/technicians';
+import { getActiveTechnicians, isFaultClosed, getArizaStatusInfo } from '../utils/technicians';
 
 interface ArizaRowProps {
   ariza: Ariza;
@@ -21,30 +21,8 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
   const jobConfig = getJobTypeConfig(ariza.jobType);
   const isDark = Boolean(jobConfig.isDarkBg);
 
-  const statusLower = (ariza.status || '').toLowerCase();
-  const isResolved = isFaultClosed(ariza);
-
-  const isUnderIntervention = !isResolved && (
-    statusLower.includes('müdahale') ||
-    statusLower.includes('mudahale') ||
-    statusLower.includes('işlem') ||
-    statusLower.includes('islem') ||
-    Boolean(ariza.startedBy)
-  );
-
-  const isWaitingParts = !isResolved && ariza.status === 'Parça Bekliyor';
-  const isHandedOver = !isResolved && ariza.status === 'Devredildi';
-
-  // Durum metni (Kutucuksuz, düz ve net metin)
-  const statusText = isResolved
-    ? 'KAPANDI'
-    : isUnderIntervention
-    ? 'MÜDAHALE'
-    : isWaitingParts
-    ? 'PARÇA BEKLİYOR'
-    : isHandedOver
-    ? 'DEVREDİLDİ'
-    : 'BEKLİYOR';
+  const statusInfo = getArizaStatusInfo(ariza);
+  const { statusText, isResolved, isUnderIntervention, isWaitingParts, isHandedOver } = statusInfo;
 
   // Aktif Ana Bakımcı ve Yardımcı Bakımcılar (Ayrılanlar kesinlikle yer almaz)
   const { anaBakimci, yardimciBakimcilar: helpersList } = getActiveTechnicians(ariza);
@@ -85,7 +63,7 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
       {/* Sol Kısım: Durum + Makine İsmi + Ayırıcı + Açıklama + Varsa Log Özeti */}
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
         {/* Durum Metni (Siyah kutu yok, logo yok, doğrudan düz yazı - yanıp sönme yok) */}
-        <div className="shrink-0 flex items-center w-20 sm:w-24">
+        <div className="shrink-0 flex items-center w-28 sm:w-32">
           {isNewArrival && (
             <span className="text-[11px] font-black uppercase mr-1">
               [YENİ]

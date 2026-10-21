@@ -10,8 +10,7 @@ import {
   parseFirestoreDate,
   formatTimeOnly,
   getEffectiveProductionDate,
-  isCreatedToday,
-  groupByTimeSlot
+  isCreatedToday
 } from './utils/date';
 import { soundFx } from './utils/audio';
 import { faultAnnouncer, AnnouncerStatus } from './utils/announcer';
@@ -19,7 +18,7 @@ import { TvHeader } from './components/TvHeader';
 import { ArizaRow } from './components/ArizaRow';
 import { ArizaDetailModal } from './components/ArizaDetailModal';
 import { getJobTypeConfig } from './utils/jobColors';
-import { getActiveTechnicians, isFaultClosed } from './utils/technicians';
+import { getActiveTechnicians, isFaultClosed, getArizaStatusInfo } from './utils/technicians';
 import {
   X,
   Inbox,
@@ -334,15 +333,6 @@ export default function App() {
     return groupsWithItems;
   };
 
-  // Kullanıcı İsteği: "gelen arızaları guruplandır şöyle 08 ile 10 arası 10 ile 12 arsı 12 ile 14 arası 14 iel 16 arsı satrı başlarında dikey olarak belirt"
-  const activeTimeGroups = useMemo(
-    () => groupByTimeSlot(activeArizalar, getSortTimestamp),
-    [activeArizalar, sessionNewArrivalIds]
-  );
-  const devredenTimeGroups = useMemo(
-    () => groupByTimeSlot(devredenArizalar, getSortTimestamp),
-    [devredenArizalar]
-  );
 
   // Sayaçlar (Fabrika TV Panosu) - Sadece açık arızalar sayılır, kapatılanlar kesinlikle hariçtir
   const allUnresolved = useMemo(
@@ -352,22 +342,12 @@ export default function App() {
   const totalOpen = allUnresolved.length;
 
   const activeInterventionsCount = useMemo(
-    () =>
-      allUnresolved.filter((a) => {
-        const s = (a.status || '').toLowerCase();
-        return (
-          s.includes('müdahale') ||
-          s.includes('mudahale') ||
-          s.includes('işlem') ||
-          s.includes('islem') ||
-          Boolean(a.startedBy)
-        );
-      }).length,
+    () => allUnresolved.filter((a) => getArizaStatusInfo(a).isUnderIntervention).length,
     [allUnresolved]
   );
 
   const waitingPartsCount = useMemo(
-    () => allUnresolved.filter((a) => a.status === 'Parça Bekliyor').length,
+    () => allUnresolved.filter((a) => getArizaStatusInfo(a).isWaitingParts).length,
     [allUnresolved]
   );
 
@@ -478,27 +458,19 @@ export default function App() {
       )}
 
       {/* TABLO SÜTUN BAŞLIKLARI (Köşeli, Kompakt, Hizalı) */}
-      <div className="bg-slate-900 border-b border-black text-[11px] font-bold uppercase text-slate-300 flex items-stretch rounded-none shrink-0 z-10 shadow-xs">
-        {/* Sol Kısım: SAAT Dikey Kolonu Başlığı */}
-        <div className="w-16 sm:w-20 shrink-0 bg-slate-950 border-r border-black flex items-center justify-center py-1 text-amber-300 font-mono text-center tracking-wider font-black text-[11px]">
-          SAAT
+      <div className="bg-slate-900 border-b border-black text-[11px] font-bold uppercase text-slate-300 px-2 sm:px-3 py-1 flex items-center justify-between gap-1.5 sm:gap-2 rounded-none shrink-0 z-10 shadow-xs">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 text-[11px] font-bold text-slate-400 truncate">
+          <span className="w-28 sm:w-32 shrink-0 text-slate-400">DURUM</span>
+          <span>|</span>
+          <span className="w-36 sm:w-48 lg:w-56 shrink-0 truncate text-slate-300">MAKİNE</span>
+          <span>|</span>
+          <span className="truncate text-slate-400">ARIZA AÇIKLAMASI</span>
         </div>
 
-        {/* Sağ Kısım: Satır Başlıkları */}
-        <div className="flex-1 flex items-center justify-between gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 min-w-0">
-          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 text-[11px] font-bold text-slate-400 truncate">
-            <span className="w-20 sm:w-24 shrink-0 text-slate-400">DURUM</span>
-            <span>|</span>
-            <span className="w-36 sm:w-48 lg:w-56 shrink-0 truncate text-slate-300">MAKİNE</span>
-            <span>|</span>
-            <span className="truncate text-slate-400">ARIZA AÇIKLAMASI</span>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-right text-[11px] font-bold text-slate-400 uppercase">
-            <span className="hidden md:inline">ARIZA TÜRÜ</span>
-            <span className="hidden sm:inline">BAKIMCILAR (ANA / YRD)</span>
-            <span className="w-24 text-right">SÜRE / SAAT</span>
-          </div>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-right text-[11px] font-bold text-slate-400 uppercase">
+          <span className="hidden md:inline">ARIZA TÜRÜ</span>
+          <span className="hidden sm:inline">BAKIMCILAR (ANA / YRD)</span>
+          <span className="w-24 text-right">SÜRE / SAAT</span>
         </div>
       </div>
 
@@ -507,48 +479,22 @@ export default function App() {
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto bg-slate-950 flex flex-col scroll-smooth"
       >
-        {/* 1. AKTİF / BUGÜNÜN AÇIK ARIZALARI BÖLÜMÜ (EN ÜSTTE - 2 SAATLİK DİKEY ZAMAN DİLİMLERİ) */}
+        {/* 1. AKTİF / BUGÜNÜN AÇIK ARIZALARI BÖLÜMÜ (EN ÜSTTE) */}
         <div className="w-full">
-          {activeTimeGroups.length === 0 ? (
+          {activeArizalar.length === 0 ? (
             <div className="p-4 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-950">
               Şu an bugüne ait bekleyen veya işlem gören açık arıza kaydı bulunmuyor.
             </div>
           ) : (
             <div className="flex flex-col w-full divide-y-0">
-              {activeTimeGroups.map((group) => (
-                <div key={`active-slot-${group.slotKey}`} className="flex w-full border-b border-black">
-                  {/* Satır Başında Dikey Zaman Dilimi (Örn: 08:00 - 10:00) */}
-                  <div className="w-16 sm:w-20 shrink-0 bg-slate-950 border-r border-black/80 flex flex-col items-center justify-center py-1 px-1 select-none font-mono">
-                    <span className="text-[11px] sm:text-xs font-black text-amber-300 tracking-wider">
-                      {group.startStr}
-                    </span>
-                    <div className="flex flex-col items-center my-0.5">
-                      <div className="w-0.5 h-1.5 bg-amber-400/40" />
-                      <span className="text-[8px] text-amber-500 font-black leading-none">▼</span>
-                    </div>
-                    <span className="text-[11px] sm:text-xs font-black text-amber-300 tracking-wider">
-                      {group.endStr}
-                    </span>
-                    {group.items.length > 1 && (
-                      <span className="text-[9px] font-mono font-bold text-slate-400 mt-1 bg-slate-900 px-1 border border-slate-800">
-                        {group.items.length} kayıt
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Bu saat aralığındaki arıza satırları */}
-                  <div className="flex-1 flex flex-col min-w-0 divide-y divide-black/30">
-                    {group.items.map((ariza) => (
-                      <ArizaRow
-                        key={ariza.id}
-                        ariza={ariza}
-                        isOld={false}
-                        isNewArrival={sessionNewArrivalIds.has(ariza.id)}
-                        onSelect={(a) => setSelectedAriza(a)}
-                      />
-                    ))}
-                  </div>
-                </div>
+              {activeArizalar.map((ariza) => (
+                <ArizaRow
+                  key={ariza.id}
+                  ariza={ariza}
+                  isOld={false}
+                  isNewArrival={sessionNewArrivalIds.has(ariza.id)}
+                  onSelect={(a) => setSelectedAriza(a)}
+                />
               ))}
             </div>
           )}
@@ -565,46 +511,20 @@ export default function App() {
             </span>
           </div>
 
-          {devredenTimeGroups.length === 0 ? (
+          {devredenArizalar.length === 0 ? (
             <div className="p-4 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-950">
               24:00 öncesinden devreden açık arıza bulunmuyor.
             </div>
           ) : (
             <div className="flex flex-col w-full divide-y-0">
-              {devredenTimeGroups.map((group) => (
-                <div key={`devreden-slot-${group.slotKey}`} className="flex w-full border-b border-black">
-                  {/* Satır Başında Dikey Zaman Dilimi */}
-                  <div className="w-16 sm:w-20 shrink-0 bg-slate-950 border-r border-black/80 flex flex-col items-center justify-center py-1 px-1 select-none font-mono">
-                    <span className="text-[10px] sm:text-[11px] font-black text-amber-400/90 tracking-wider">
-                      {group.startStr}
-                    </span>
-                    <div className="flex flex-col items-center my-0.5">
-                      <div className="w-0.5 h-1.5 bg-amber-500/30" />
-                      <span className="text-[8px] text-amber-600 font-black leading-none">▼</span>
-                    </div>
-                    <span className="text-[10px] sm:text-[11px] font-black text-amber-400/90 tracking-wider">
-                      {group.endStr}
-                    </span>
-                    {group.items.length > 1 && (
-                      <span className="text-[9px] font-mono font-bold text-slate-500 mt-1 bg-slate-900 px-1 border border-slate-800">
-                        {group.items.length} kayıt
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Arıza Satırları */}
-                  <div className="flex-1 flex flex-col min-w-0 divide-y divide-black/30">
-                    {group.items.map((ariza) => (
-                      <ArizaRow
-                        key={ariza.id}
-                        ariza={ariza}
-                        isOld={true}
-                        isNewArrival={false}
-                        onSelect={(a) => setSelectedAriza(a)}
-                      />
-                    ))}
-                  </div>
-                </div>
+              {devredenArizalar.map((ariza) => (
+                <ArizaRow
+                  key={ariza.id}
+                  ariza={ariza}
+                  isOld={true}
+                  isNewArrival={false}
+                  onSelect={(a) => setSelectedAriza(a)}
+                />
               ))}
             </div>
           )}

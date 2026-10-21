@@ -22,7 +22,7 @@ import {
 import { Ariza, Intervention } from '../types';
 import { formatDateFull, formatElapsedTime } from '../utils/date';
 import { getJobTypeConfig } from '../utils/jobColors';
-import { getActiveTechnicians, isFaultClosed } from '../utils/technicians';
+import { getActiveTechnicians, isFaultClosed, getArizaStatusInfo } from '../utils/technicians';
 
 interface ArizaDetailModalProps {
   ariza: Ariza | null;
@@ -38,22 +38,14 @@ export const ArizaDetailModal: React.FC<ArizaDetailModalProps> = ({
   const jobConfig = getJobTypeConfig(ariza.jobType);
   const elapsed = formatElapsedTime(ariza.createdAt);
 
+  const statusInfo = getArizaStatusInfo(ariza);
+  const { isResolved, isUnderIntervention, isWaitingParts, isHandedOver, statusText } = statusInfo;
+
   const isSafetyCritical = jobConfig.key === 'is_guvenligi';
   const isRecurring = jobConfig.key === 'tekrar_eden';
 
   // Aktif Ana Bakımcı ve Yardımcı Bakımcılar (Ayrılanlar dahil edilmez)
   const { anaBakimci, yardimciBakimcilar: helpersList } = getActiveTechnicians(ariza);
-
-  const isResolved = isFaultClosed(ariza);
-  const statusLower = (ariza.status || '').toLowerCase();
-  const isUnderIntervention = !isResolved && (
-    statusLower.includes('müdahale') ||
-    statusLower.includes('mudahale') ||
-    statusLower.includes('işlem') ||
-    statusLower.includes('islem') ||
-    Boolean(ariza.startedBy) ||
-    Boolean(anaBakimci)
-  );
 
   const activeOperator = anaBakimci || ariza.userName || '';
 
@@ -119,6 +111,34 @@ export const ArizaDetailModal: React.FC<ArizaDetailModalProps> = ({
                 </div>
               </div>
             </div>
+          ) : isWaitingParts ? (
+            <div className="p-4 rounded-xl bg-amber-950/80 border-2 border-amber-500 text-amber-200 space-y-2 shadow-lg">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-3 h-3 rounded-full bg-amber-400" />
+                  <span className="font-black text-sm tracking-wide">
+                    ⏳ PARÇA BEKLİYOR
+                  </span>
+                </div>
+                {ariza.lastInterventionAt && (
+                  <span className="text-xs font-mono text-amber-300">
+                    Kayıt: {formatDateFull(ariza.lastInterventionAt)}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-amber-800/80 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-amber-400 font-bold">İlgilenen Bakımcı:</span>
+                  <span className="text-white font-extrabold uppercase">{anaBakimci || 'Atanmadı'}</span>
+                </div>
+                {ariza.partsChanged && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-amber-300 font-bold">Parça:</span>
+                    <span className="text-white font-extrabold">{ariza.partsChanged}</span>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : isUnderIntervention ? (
             <div className="p-4 rounded-xl bg-cyan-950/80 border-2 border-cyan-400 text-cyan-200 space-y-2 shadow-lg">
               <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -151,7 +171,7 @@ export const ArizaDetailModal: React.FC<ArizaDetailModalProps> = ({
             <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs flex-wrap gap-2">
               <div className="flex items-center gap-2 font-bold text-slate-300">
                 <Flame className="w-4 h-4 text-amber-400" />
-                <span>Müdahale Durumu: <span className="text-white">{ariza.status}</span></span>
+                <span>Müdahale Durumu: <span className="text-white">{statusText}</span></span>
               </div>
               <div className="flex items-center gap-3">
                 {anaBakimci && (

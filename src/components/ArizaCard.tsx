@@ -15,6 +15,7 @@ import {
 import { Ariza } from '../types';
 import { formatElapsedTime, formatDateFull } from '../utils/date';
 import { getJobTypeConfig } from '../utils/jobColors';
+import { getArizaStatusInfo } from '../utils/technicians';
 
 interface ArizaCardProps {
   ariza: Ariza;
@@ -32,20 +33,10 @@ export const ArizaCard: React.FC<ArizaCardProps> = ({
   const isSafetyCritical = jobConfig.key === 'is_guvenligi';
   const isRecurring = jobConfig.key === 'tekrar_eden';
 
-  // Active intervention check
+  // Active status check
+  const statusInfo = getArizaStatusInfo(ariza);
+  const { isResolved, isUnderIntervention, isWaitingParts, isHandedOver, statusText } = statusInfo;
   const activeOperator = ariza.startedBy || ariza.assignedTo || ariza.lastInterventionBy || '';
-  const statusLower = (ariza.status || '').toLowerCase();
-  const isUnderIntervention = (
-    statusLower.includes('müdahale') ||
-    statusLower.includes('mudahale') ||
-    statusLower.includes('işlem') ||
-    statusLower.includes('islem') ||
-    Boolean(ariza.startedBy)
-  );
-
-  const isWaitingParts = ariza.status === 'Parça Bekliyor';
-  const isHandedOver = ariza.status === 'Devredildi';
-  const isResolved = ariza.status === 'Tamamlandı' || ariza.status === 'Çözüldü';
 
   // Extract helpers reliably from both ariza.helpers array and interventions history
   const helpersSet = new Set<string>();
