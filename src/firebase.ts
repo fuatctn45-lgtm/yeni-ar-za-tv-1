@@ -55,6 +55,7 @@ function mapDocToAriza(id: string, data: any): Ariza {
     data.mainOperator ||
     data.leadOperator ||
     data.operator ||
+    data['operatör'] ||
     data.lastInterventionBy ||
     '';
 
@@ -62,6 +63,7 @@ function mapDocToAriza(id: string, data: any): Ariza {
     data.helpers ||
     data.yardimciBakimci ||
     data.yardimcilar ||
+    data['yardımcılar'] ||
     data.yardimci ||
     [];
   const helpersList: string[] = [];
@@ -75,8 +77,13 @@ function mapDocToAriza(id: string, data: any): Ariza {
     });
   }
 
-  const rawInterventions =
-    Array.isArray(data.interventions)
+  // Veritabanındaki müdahaleler / interventions dizisini tüm formatlarda eşle
+  const rawInterventionsList =
+    Array.isArray(data['müdahaleler'])
+      ? data['müdahaleler']
+      : Array.isArray(data.mudahaleler)
+      ? data.mudahaleler
+      : Array.isArray(data.interventions)
       ? data.interventions
       : Array.isArray(data.logs)
       ? data.logs
@@ -84,22 +91,45 @@ function mapDocToAriza(id: string, data: any): Ariza {
       ? data.arizaLoglari
       : [];
 
+  const rawInterventions: Intervention[] = rawInterventionsList.map((item: any) => ({
+    timestamp: item.timestamp || item.zaman || item['zaman damgası'] || item.tarih || '',
+    operator: item.operator || item['operatör'] || item.kullanici || '',
+    role: item.role || item.rol || 'Ana Bakımcı',
+    status: item.status || item.durum || '',
+    actionTaken: item.actionTaken || item['Gerçekleştirilen eylem'] || item.yapilanIslem || item.eylem || '',
+    logAction: item.logAction || item.actionTaken || item['Gerçekleştirilen eylem'] || '',
+    durationMin: item.durationMin || item['SüreMin'] || item.sure || 0,
+    helpers: Array.isArray(item.helpers) ? item.helpers : Array.isArray(item['yardımcılar']) ? item['yardımcılar'] : [],
+  }));
+
   const logText =
     data.arizaLog ||
     data.actionTaken ||
+    data['Gerçekleştirilen eylem'] ||
     data.yapilanIslem ||
     data.log ||
     '';
 
+  // Veritabanındaki en güncel durum metni:
+  // ÖNCELİK 1: Dökümanın kendi güncel durum/status alanı (KOLONLU MATKAP gibi dökümanlarda en yetkili anlık durum)
+  // ÖNCELİK 2: Yalnızca dökümanda hiçbir durum yazmıyorsa son müdahale adımındaki durum
+  const docDurum = (data.durum || data.status || '').trim();
+  const lastInvStatus =
+    rawInterventions.length > 0 ? (rawInterventions[rawInterventions.length - 1].status || '') : '';
+
+  const finalDurum = (docDurum || lastInvStatus || 'Açık').trim();
+
   return {
     id,
     machine: data.machine || data.makine || data.makineAdi || data.machineName || 'Bilinmeyen Makine',
-    jobType: data.jobType || data.arizaTuru || data.isTuru || data.is_turu || data.type || 'Mekanik Arıza',
-    costCenter: data.costCenter || data.masrafMerkezi || '',
+    jobType: data.jobType || data['işTürü'] || data.isTuru || data.is_turu || data.arizaTuru || data.type || 'Mekanik Arıza',
+    costCenter: data.costCenter || data['maliyet merkezi'] || data.masrafMerkezi || '',
     shift: data.shift || data.vardiya || '',
-    status: data.status || data.durum || 'Açık',
+    status: finalDurum,
     description:
       data.description ||
+      data['Tanım'] ||
+      data.tanim ||
       data.aciklama ||
       data.arizaAciklamasi ||
       data.aciklamasi ||
@@ -109,13 +139,13 @@ function mapDocToAriza(id: string, data: any): Ariza {
       data.notlar ||
       data.talep ||
       '',
-    userName: data.userName || data.kullanici || '',
+    userName: data.userName || data.kullanici || data['operatör'] || '',
     photoUrl: data.photoUrl || '',
     photoUploadStatus: data.photoUploadStatus || '',
     partsChanged: data.partsChanged || '',
     actionTaken: logText,
     resolvedData: data.resolvedData || null,
-    createdAt: data.createdAt,
+    createdAt: data.createdAt || data['oluşturulma tarihi'] || data.olusturmaTarihi,
     startedBy: anaBakimci,
     assignedTo: data.assignedTo || anaBakimci,
     startedAt: data.startedAt || '',
@@ -127,7 +157,7 @@ function mapDocToAriza(id: string, data: any): Ariza {
     anaBakimci,
     yardimciBakimci: helpersList,
     arizaLog: logText,
-    durum: data.durum || data.status || '',
+    durum: finalDurum,
     completedAt: data.completedAt || data.closedAt || data.resolvedAt || '',
     completedBy: data.completedBy || data.closedBy || data.resolvedBy || '',
     closedAt: data.closedAt || data.completedAt || '',
@@ -135,40 +165,86 @@ function mapDocToAriza(id: string, data: any): Ariza {
   };
 }
 
+/**
+ * Subscribe to all 'arizalar' documents with real-time updates, self-healing auto-reconnect
+ */
 export function subscribeToArizalar(
   onData: (arizalar: Ariza[], newlyAddedItems?: Ariza[]) => void,
   onError?: (err: any) => void
-) {
+): () => void {
   let isInitialLoad = true;
-  const colRef = collection(db, 'arizalar');
+  let isDisposed = false;
+  let activeUnsub: (() => void) | null = null;
+  let reconnectTimer: any = null;
 
-  return onSnapshot(
-    colRef,
-    (snapshot) => {
-      const items: Ariza[] = [];
-      const newItems: Ariza[] = [];
+  function connect() {
+    if (isDisposed) return;
+    try {
+      const colRef = collection(db, 'arizalar');
+      activeUnsub = onSnapshot(
+        colRef,
+        (snapshot) => {
+          if (isDisposed) return;
+          const items: Ariza[] = [];
+          const newItems: Ariza[] = [];
 
-      snapshot.forEach((docSnap) => {
-        items.push(mapDocToAriza(docSnap.id, docSnap.data()));
-      });
+          snapshot.forEach((docSnap) => {
+            items.push(mapDocToAriza(docSnap.id, docSnap.data()));
+          });
 
-      // Detect newly arriving jobs after initial boot
-      if (!isInitialLoad) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added') {
-            newItems.push(mapDocToAriza(change.doc.id, change.doc.data()));
+          // Detect newly arriving jobs after initial boot
+          if (!isInitialLoad) {
+            snapshot.docChanges().forEach((change) => {
+              if (change.type === 'added') {
+                newItems.push(mapDocToAriza(change.doc.id, change.doc.data()));
+              }
+            });
           }
-        });
-      }
 
-      isInitialLoad = false;
-      onData(items, newItems);
-    },
-    (error) => {
-      handleFirestoreError(error, OperationType.GET, 'arizalar');
-      if (onError) onError(error);
+          isInitialLoad = false;
+          onData(items, newItems);
+        },
+        (error) => {
+          if (isDisposed) return;
+          console.warn('[Firestore Live Listener Warning]:', error);
+          handleFirestoreError(error, OperationType.GET, 'arizalar');
+          if (onError) onError(error);
+
+          // Otomatik yeniden bağlanma (3 saniye sonra)
+          if (activeUnsub) {
+            try {
+              activeUnsub();
+            } catch (e) {}
+            activeUnsub = null;
+          }
+          clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(() => {
+            connect();
+          }, 3000);
+        }
+      );
+    } catch (err) {
+      if (isDisposed) return;
+      console.warn('[Firestore Connect Error]:', err);
+      if (onError) onError(err);
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => {
+        connect();
+      }, 3000);
     }
-  );
+  }
+
+  connect();
+
+  return () => {
+    isDisposed = true;
+    clearTimeout(reconnectTimer);
+    if (activeUnsub) {
+      try {
+        activeUnsub();
+      } catch (e) {}
+    }
+  };
 }
 
 /**

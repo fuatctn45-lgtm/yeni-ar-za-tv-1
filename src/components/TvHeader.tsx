@@ -119,15 +119,24 @@ export const TvHeader: React.FC<TvHeaderProps> = ({
             <span>{currentShift}</span>
           </div>
 
-          {/* Canlı Bağlantı Rozeti (Köşeli) */}
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-[10px] font-black border ${
-            isOnline
-              ? 'bg-emerald-950/80 text-emerald-400 border-emerald-500/50'
-              : 'bg-red-950/80 text-red-400 border-red-500/50'
-          }`}>
+          {/* Canlı Bağlantı Rozeti (Köşeli, Tıklanabilir Manuel Yenilemeli) */}
+          <button
+            onClick={onRefresh}
+            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[10px] font-black border transition-all cursor-pointer ${
+              isOnline
+                ? 'bg-emerald-950/80 text-emerald-400 border-emerald-500/50 hover:bg-emerald-900/60'
+                : 'bg-red-950/80 text-red-400 border-red-500/50 hover:bg-red-900/60'
+            }`}
+            title="Sistem Canlı / Online Bağlantı Durumu (Yenilemek için tıklayın)"
+          >
             <span className={`w-1.5 h-1.5 rounded-none ${isOnline ? 'bg-emerald-400 animate-ping' : 'bg-red-500'}`} />
-            <span>{isOnline ? 'CANLI' : 'KOPUK'}</span>
-          </span>
+            <span>{isOnline ? 'CANLI • ONLINE' : 'KOPUK'}</span>
+            {lastSyncTime && (
+              <span className="font-mono text-[9px] text-slate-300 hidden xl:inline">
+                ({lastSyncTime})
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Orta: Kompakt Sayaçlar (Köşeli ve direkt rakamlar) */}

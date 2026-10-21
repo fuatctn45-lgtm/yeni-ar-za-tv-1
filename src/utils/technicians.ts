@@ -204,16 +204,20 @@ export interface ArizaStatusInfo {
   statusText: string;
   isResolved: boolean;
   isWaitingParts: boolean;
+  isWaitingService: boolean;
   isHandedOver: boolean;
   isUnderIntervention: boolean;
   isOpenWaiting: boolean;
+  rawStatus: string;
 }
 
 /**
- * Arızanın durumunu (Kapandı, Parça Bekliyor, Devredildi, Müdahale, Bekliyor)
- * veritabanındaki durum ve status alanlarına göre KESİN ve DOĞRU sırada tespit eder.
- * "Parça Bekliyor" veya "Devredildi" durumundaki arızalar, geçmişte startedBy atanmış olsa dahi
- * asla "MÜDAHALE" olarak gösterilmez; veritabanındaki güncel durum önceliklidir.
+ * Arızanın durumunu DOĞRUDAN VERİTABANINA GÖRE tespit eder.
+ * Kullanıcı İsteği: "veri tabaındaki durum ile sendeki farklı veri tabnına göre davran"
+ *
+ * Veritabanında kayıtlı durum ("Dış Servis Bekliyor", "Parça Bekliyor", "Devredildi",
+ * "Müdahale Ediliyor", "Bekliyor", "Tamamlandı" vb.) ne ise doğrudan o durum kullanılır
+ * ve operatör/startedBy var diye durum yapay olarak MÜDAHALE'ye çevrilmez.
  */
 export function getArizaStatusInfo(ariza: Ariza | null | undefined): ArizaStatusInfo {
   if (!ariza) {
@@ -221,9 +225,11 @@ export function getArizaStatusInfo(ariza: Ariza | null | undefined): ArizaStatus
       statusText: 'BEKLİYOR',
       isResolved: false,
       isWaitingParts: false,
+      isWaitingService: false,
       isHandedOver: false,
       isUnderIntervention: false,
       isOpenWaiting: true,
+      rawStatus: '',
     };
   }
 
@@ -233,96 +239,165 @@ export function getArizaStatusInfo(ariza: Ariza | null | undefined): ArizaStatus
       statusText: 'KAPANDI',
       isResolved: true,
       isWaitingParts: false,
+      isWaitingService: false,
       isHandedOver: false,
       isUnderIntervention: false,
       isOpenWaiting: false,
+      rawStatus: 'Kapandı',
     };
   }
 
-  // Veritabanındaki en güncel durum metnini al (durum, status veya son intervention durumu)
+  // Veritabanındaki en güncel durum metinlerini al
+  // ÖNCELİK 1: Dökümanın kendi güncel durum / status alanı (KOLONLU MATKAP gibi dökümanlarda en yetkili anlık durum)
+  // ÖNCELİK 2: Yalnızca dökümanda hiçbir durum yazmıyorsa son müdahale logundaki durum
   const lastInv =
     Array.isArray(ariza.interventions) && ariza.interventions.length > 0
       ? ariza.interventions[ariza.interventions.length - 1]
       : null;
 
-  const rawStatus = (
-    ariza.durum ||
-    ariza.status ||
-    (lastInv ? (lastInv.status || (lastInv as any).durum) : '') ||
-    ''
-  ).trim();
+  const docDurum = (ariza.durum || '').trim();
+  const docStatus = (ariza.status || '').trim();
+  const lastInvStatus = (lastInv ? (lastInv.status || (lastInv as any).durum || '') : '').trim();
 
-  const lower = rawStatus
-    .toLocaleLowerCase('tr-TR')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+  // Veritabanındaki en güncel ham durum metni
+  const rawStatus = (docDurum || docStatus || lastInvStatus || '').trim();
 
-  // 2. PARÇA BEKLİYOR KONTROLÜ (Müdahale'den ÖNCE kontrol edilir!)
-  // Veritabanında "Parça Bekliyor", "parça bekliyor", "Parca Bekliyor", "Yedek Parça" vb. varsa
-  // daha önce startedBy olsa bile arıza parça beklemeye alınmıştır, müdahale DEĞİLDİR!
-  if (lower.includes('parca') || lower.includes('yedek')) {
+  const normalizeStr = (s: string) =>
+    s
+      .toLocaleLowerCase('tr-TR')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  const norm = normalizeStr(rawStatus);
+
+  // 2. KAPALI / ÇÖZÜLDÜ
+  if (
+    norm.includes('kapan') ||
+    norm.includes('tamamlan') ||
+    norm.includes('cozul') ||
+    norm === 'bitti'
+  ) {
+    return {
+      statusText: 'KAPANDI',
+      isResolved: true,
+      isWaitingParts: false,
+      isWaitingService: false,
+      isHandedOver: false,
+      isUnderIntervention: false,
+      isOpenWaiting: false,
+      rawStatus,
+    };
+  }
+
+  // 3. DIŞ SERVİS BEKLİYOR KONTROLÜ (Veritabanında: "Dış Servis Bekliyor")
+  if (
+    norm.includes('dis servis') ||
+    norm.includes('servis bekliyor') ||
+    norm.includes('dis-servis') ||
+    norm.includes('serviste')
+  ) {
+    return {
+      statusText: 'DIŞ SERVİS BEKLİYOR',
+      isResolved: false,
+      isWaitingParts: false,
+      isWaitingService: true,
+      isHandedOver: false,
+      isUnderIntervention: false,
+      isOpenWaiting: false,
+      rawStatus,
+    };
+  }
+
+  // 4. PARÇA BEKLİYOR KONTROLÜ (Veritabanında: "Parça Bekliyor", "Yedek Parça")
+  if (norm.includes('parca') || norm.includes('yedek')) {
     return {
       statusText: 'PARÇA BEKLİYOR',
       isResolved: false,
       isWaitingParts: true,
+      isWaitingService: false,
       isHandedOver: false,
       isUnderIntervention: false,
       isOpenWaiting: false,
+      rawStatus,
     };
   }
 
-  // 3. DEVREDİLDİ KONTROLÜ
-  if (lower.includes('devred') || lower.includes('devir')) {
+  // 5. DEVREDİLDİ KONTROLÜ
+  if (norm.includes('devred') || norm.includes('devir')) {
     return {
       statusText: 'DEVREDİLDİ',
       isResolved: false,
       isWaitingParts: false,
+      isWaitingService: false,
       isHandedOver: true,
       isUnderIntervention: false,
       isOpenWaiting: false,
+      rawStatus,
     };
   }
 
-  // 4. MÜDAHALE / İŞLEMDE KONTROLÜ
+  // 6. MÜDAHALE / İŞLEMDE KONTROLÜ
+  // Yalnızca veritabanındaki durum açıkça müdahale/işlemde ise MÜDAHALE sayılır
   const hasInterventionKeyword =
-    lower.includes('mudahale') ||
-    lower.includes('islem') ||
-    lower.includes('bakimda') ||
-    lower.includes('onarim') ||
-    lower.includes('calisiliyor') ||
-    lower.includes('calisma');
+    norm.includes('mudahale') ||
+    norm.includes('islem') ||
+    norm.includes('bakimda') ||
+    norm.includes('onarim') ||
+    norm.includes('calisiliyor') ||
+    norm.includes('calisma');
 
-  const isExplicitWaiting =
-    lower === 'acik' ||
-    lower === 'bekliyor' ||
-    lower === 'beklemede' ||
-    lower === 'yeni' ||
-    lower === '';
-
-  // Eğer durum açıkça "Açık" veya "Bekliyor" ise, geçmişteki startedBy müdahale sayılmaz
-  const isUnderIntervention =
-    hasInterventionKeyword ||
-    (!isExplicitWaiting && Boolean(ariza.startedBy || ariza.anaBakimci));
-
-  if (isUnderIntervention) {
+  if (hasInterventionKeyword) {
     return {
-      statusText: 'MÜDAHALE',
+      statusText: norm.includes('ediliyor') ? 'MÜDAHALE EDİLİYOR' : 'MÜDAHALE',
       isResolved: false,
       isWaitingParts: false,
+      isWaitingService: false,
       isHandedOver: false,
       isUnderIntervention: true,
       isOpenWaiting: false,
+      rawStatus,
     };
   }
 
-  // 5. BEKLİYOR / AÇIK
+  // 7. BEKLİYOR / AÇIK
+  if (
+    norm === '' ||
+    norm === 'acik' ||
+    norm === 'bekliyor' ||
+    norm === 'beklemede' ||
+    norm === 'yeni'
+  ) {
+    return {
+      statusText: 'BEKLİYOR',
+      isResolved: false,
+      isWaitingParts: false,
+      isWaitingService: false,
+      isHandedOver: false,
+      isUnderIntervention: false,
+      isOpenWaiting: true,
+      rawStatus,
+    };
+  }
+
+  // 8. DİĞER VERİTABANI DURUMLARI (Veritabanındaki metin birebir büyük harfle yansıtılır)
   return {
-    statusText: 'BEKLİYOR',
+    statusText: rawStatus.toLocaleUpperCase('tr-TR'),
     isResolved: false,
     isWaitingParts: false,
+    isWaitingService: false,
     isHandedOver: false,
     isUnderIntervention: false,
-    isOpenWaiting: true,
+    isOpenWaiting: false,
+    rawStatus,
   };
+}
+
+/**
+ * Arızada aktif bir müdahale olup olmadığını kontrol eder.
+ * Kullanıcı İsteği: "devreden arızalada eğer müdahale varsa onu yukarı taşı"
+ */
+export function hasArizaIntervention(ariza: Ariza | null | undefined): boolean {
+  if (!ariza) return false;
+  return getArizaStatusInfo(ariza).isUnderIntervention;
 }
 

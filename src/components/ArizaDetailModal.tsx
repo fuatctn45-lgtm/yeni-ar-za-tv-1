@@ -39,7 +39,7 @@ export const ArizaDetailModal: React.FC<ArizaDetailModalProps> = ({
   const elapsed = formatElapsedTime(ariza.createdAt);
 
   const statusInfo = getArizaStatusInfo(ariza);
-  const { isResolved, isUnderIntervention, isWaitingParts, isHandedOver, statusText } = statusInfo;
+  const { isResolved, isUnderIntervention, isWaitingParts, isWaitingService, isHandedOver, statusText } = statusInfo;
 
   const isSafetyCritical = jobConfig.key === 'is_guvenligi';
   const isRecurring = jobConfig.key === 'tekrar_eden';
@@ -70,6 +70,8 @@ export const ArizaDetailModal: React.FC<ArizaDetailModalProps> = ({
                   className={`px-2.5 py-0.5 rounded-none text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 ${
                     isWaitingParts
                       ? 'bg-amber-950 text-amber-300 border-amber-400'
+                      : isWaitingService
+                      ? 'bg-violet-950 text-violet-300 border-violet-400'
                       : isUnderIntervention
                       ? 'bg-sky-950 text-cyan-300 border-cyan-400'
                       : isHandedOver
@@ -83,6 +85,8 @@ export const ArizaDetailModal: React.FC<ArizaDetailModalProps> = ({
                     className={`w-2 h-2 rounded-full shrink-0 ${
                       isWaitingParts
                         ? 'bg-amber-400'
+                        : isWaitingService
+                        ? 'bg-violet-400'
                         : isUnderIntervention
                         ? 'bg-cyan-400 animate-ping'
                         : isHandedOver

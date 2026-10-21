@@ -35,7 +35,7 @@ export const ArizaCard: React.FC<ArizaCardProps> = ({
 
   // Active status check
   const statusInfo = getArizaStatusInfo(ariza);
-  const { isResolved, isUnderIntervention, isWaitingParts, isHandedOver, statusText } = statusInfo;
+  const { isResolved, isUnderIntervention, isWaitingParts, isWaitingService, isHandedOver, statusText } = statusInfo;
   const activeOperator = ariza.startedBy || ariza.assignedTo || ariza.lastInterventionBy || '';
 
   // Extract helpers reliably from both ariza.helpers array and interventions history
@@ -187,12 +187,22 @@ export const ArizaCard: React.FC<ArizaCardProps> = ({
             </span>
           </div>
         ) : isWaitingParts ? (
-          <div className="p-1 px-2 rounded-lg bg-purple-950 text-purple-200 font-black text-[10px] flex items-center justify-between border border-purple-500 shadow-sm">
+          <div className="p-1 px-2 rounded-lg bg-amber-950 text-amber-200 font-black text-[10px] flex items-center justify-between border border-amber-500 shadow-sm">
             <div className="flex items-center gap-1 truncate">
-              <Package className="w-3 h-3 text-purple-400 shrink-0" />
+              <Package className="w-3 h-3 text-amber-400 shrink-0" />
               <span className="truncate">PARÇA BEKLİYOR</span>
             </div>
-            <span className="shrink-0 font-mono text-[9.5px] text-purple-300 ml-1">
+            <span className="shrink-0 font-mono text-[9.5px] text-amber-300 ml-1">
+              ⏱ {elapsed.text}
+            </span>
+          </div>
+        ) : isWaitingService ? (
+          <div className="p-1 px-2 rounded-lg bg-violet-950 text-violet-200 font-black text-[10px] flex items-center justify-between border border-violet-500 shadow-sm">
+            <div className="flex items-center gap-1 truncate">
+              <span className="w-2 h-2 rounded-full bg-violet-400 shrink-0" />
+              <span className="truncate">DIŞ SERVİS BEKLİYOR</span>
+            </div>
+            <span className="shrink-0 font-mono text-[9.5px] text-violet-300 ml-1">
               ⏱ {elapsed.text}
             </span>
           </div>

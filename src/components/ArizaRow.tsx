@@ -22,7 +22,7 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
   const isDark = Boolean(jobConfig.isDarkBg);
 
   const statusInfo = getArizaStatusInfo(ariza);
-  const { statusText, isResolved, isUnderIntervention, isWaitingParts, isHandedOver } = statusInfo;
+  const { statusText, isResolved, isUnderIntervention, isWaitingParts, isWaitingService, isHandedOver, isOpenWaiting } = statusInfo;
 
   // Aktif Ana Bakımcı ve Yardımcı Bakımcılar (Ayrılanlar kesinlikle yer almaz)
   const { anaBakimci, yardimciBakimcilar: helpersList } = getActiveTechnicians(ariza);
@@ -50,7 +50,7 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
   const mutedTextColor = isDark ? 'text-white/90' : 'text-slate-950';
   const dividerColor = isDark ? 'text-white/35' : 'text-black/35';
 
-  // Durum Alanı Özel Dikkat Çekici Rozet Stili (Kullanıcı İsteği: "durum alanın farklı yap dikkat çekici olsun")
+  // Durum Alanı Özel Dikkat Çekici Rozet Stili (Veritabanındaki gerçek duruma göre)
   let statusBadgeStyle = {
     container: 'bg-black text-rose-300 border-2 border-rose-500 shadow-sm',
     dot: 'bg-rose-500',
@@ -61,6 +61,12 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
     statusBadgeStyle = {
       container: 'bg-black text-amber-300 border-2 border-amber-400 shadow-sm ring-1 ring-amber-400/50',
       dot: 'bg-amber-400',
+      ping: false,
+    };
+  } else if (isWaitingService) {
+    statusBadgeStyle = {
+      container: 'bg-black text-violet-300 border-2 border-violet-400 shadow-sm ring-1 ring-violet-400/50',
+      dot: 'bg-violet-400',
       ping: false,
     };
   } else if (isUnderIntervention) {
@@ -81,6 +87,12 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
       dot: 'bg-emerald-400',
       ping: false,
     };
+  } else if (!isOpenWaiting) {
+    statusBadgeStyle = {
+      container: 'bg-black text-sky-300 border-2 border-sky-400 shadow-sm ring-1 ring-sky-400/50',
+      dot: 'bg-sky-400',
+      ping: false,
+    };
   }
 
   return (
@@ -95,8 +107,8 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
     >
       {/* Sol Kısım: Durum + Makine İsmi + Ayırıcı + Açıklama + Varsa Log Özeti */}
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
-        {/* Durum Alanı (Farklı ve Dikkat Çekici Tasarım) */}
-        <div className="shrink-0 flex items-center w-36 sm:w-40 md:w-44">
+        {/* Durum Alanı (Veritabanı Durumuna Birebir Sadık Dikkat Çekici Tasarım) */}
+        <div className="shrink-0 flex items-center w-40 sm:w-44 md:w-48">
           {isNewArrival && (
             <span className="text-[10px] font-black uppercase mr-1 bg-red-600 text-white px-1.5 py-0.5 animate-pulse rounded-xs shadow-xs shrink-0">
               YENİ

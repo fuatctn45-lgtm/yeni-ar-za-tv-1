@@ -110,3 +110,31 @@ export function getJobTypeConfig(rawJobType?: string): JobTypeConfig {
 
   return JOB_TYPE_COLORS.diger;
 }
+
+/**
+ * Kullanıcı İsteği: "devredeb aızaları tür,ne göre sıral sıralma 1 mek 2 elek 3 isg 4 tekrar eden 5 planlam gibi olsun sıralam"
+ * Sıralama önceliği:
+ * 1. Mekanik (mek)
+ * 2. Elektrik (elek)
+ * 3. İş Güvenliği (isg)
+ * 4. Tekrar Eden
+ * 5. Planlama / Planlı Bakım
+ * 6. Diğer
+ */
+export function getJobTypeSortRank(rawJobType?: string): number {
+  const config = getJobTypeConfig(rawJobType);
+  switch (config.key) {
+    case 'mekanik':
+      return 1;
+    case 'elektrik':
+      return 2;
+    case 'is_guvenligi':
+      return 3;
+    case 'tekrar_eden':
+      return 4;
+    case 'planli_bakim':
+      return 5;
+    default:
+      return 6;
+  }
+}

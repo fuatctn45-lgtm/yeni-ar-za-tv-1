@@ -17,7 +17,7 @@ import { faultAnnouncer, AnnouncerStatus } from './utils/announcer';
 import { TvHeader } from './components/TvHeader';
 import { ArizaRow } from './components/ArizaRow';
 import { ArizaDetailModal } from './components/ArizaDetailModal';
-import { getJobTypeConfig } from './utils/jobColors';
+import { getJobTypeConfig, getJobTypeSortRank } from './utils/jobColors';
 import { getActiveTechnicians, isFaultClosed, getArizaStatusInfo } from './utils/technicians';
 import {
   X,
@@ -143,9 +143,35 @@ export default function App() {
         setArizalar(data);
       },
       () => {
-        setIsOnline(false);
+        // Hata durumunda hemen offline yapma, arka plan heartbeat denemeye devam eder
       }
     );
+
+    // 2. Çift Katmanlı Kesintisiz Canlı Heartbeat (Her 3 saniyede bir otomatik veritabanı kontrolü)
+    // Bu sayede WebSocket gecikmesi veya tarayıcı arka plan kısıtlaması olsa dahi
+    // sistem kesintisiz olarak veritabanı ile canlı ve online kalır.
+    const heartbeatInterval = setInterval(async () => {
+      try {
+        const fresh = await fetchAllArizalarDirect();
+        setIsOnline(true);
+        markSync();
+
+        setArizalar((currentList) => {
+          const currentSig = JSON.stringify(
+            currentList.map((a) => [a.id, a.durum, a.status, a.interventions?.length, a.startedBy])
+          );
+          const freshSig = JSON.stringify(
+            fresh.map((a) => [a.id, a.durum, a.status, a.interventions?.length, a.startedBy])
+          );
+          if (currentSig !== freshSig) {
+            return fresh;
+          }
+          return currentList;
+        });
+      } catch (err) {
+        console.warn('[Heartbeat check warning]:', err);
+      }
+    }, 3000);
 
     const unsubConfig = subscribeToConfig((cfg) => {
       setConfig(cfg);
@@ -155,16 +181,10 @@ export default function App() {
       setPlantSettings(ps);
     });
 
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
     return () => {
       unsubArizalar();
+      clearInterval(heartbeatInterval);
       unsubConfig();
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
@@ -244,8 +264,34 @@ export default function App() {
       active.push(a);
     });
 
+    // 1. Bugünün aktif arızaları: en yeni gelen kayıtlar en üstte
+    active.sort((a, b) => getSortTimestamp(b) - getSortTimestamp(a));
+
+    // 2. Kullanıcı İstekleri:
+    // - "devredeb aızaları tür,ne göre sıral sıralma 1 mek 2 elek 3 isg 4 tekrar eden 5 planlam gibi olsun sıralam"
+    // - "devreden arızalada eğer müdahale varsa onu yukarı taşı"
+    devreden.sort((a, b) => {
+      // 1. Öncelik: Eğer arızaya müdahale varsa (MÜDAHALE durumundaysa) en yukarı taşınır
+      const hasInterventionA = getArizaStatusInfo(a).isUnderIntervention;
+      const hasInterventionB = getArizaStatusInfo(b).isUnderIntervention;
+
+      if (hasInterventionA !== hasInterventionB) {
+        return hasInterventionA ? -1 : 1;
+      }
+
+      // 2. Öncelik: Tür sıralaması (1: Mekanik, 2: Elektrik, 3: İSG, 4: Tekrar Eden, 5: Planlama, 6: Diğer)
+      const rankA = getJobTypeSortRank(a.jobType);
+      const rankB = getJobTypeSortRank(b.jobType);
+      if (rankA !== rankB) {
+        return rankA - rankB; // 1: Mekanik, 2: Elektrik, 3: İSG, 4: Tekrar Eden, 5: Planlama, 6: Diğer
+      }
+
+      // 3. Öncelik: Tarih/saat damgasına göre en yeni kayıtlar
+      return getSortTimestamp(b) - getSortTimestamp(a);
+    });
+
     return { activeArizalar: active, devredenArizalar: devreden, closedArizalar: closed };
-  }, [arizalar, effectiveDate]);
+  }, [arizalar, effectiveDate, sessionNewArrivalIds]);
 
   // Arızaları iş türüne göre gruplama fonksiyonu
   interface JobGroup {
@@ -460,7 +506,7 @@ export default function App() {
       {/* TABLO SÜTUN BAŞLIKLARI (Köşeli, Kompakt, Hizalı) */}
       <div className="bg-slate-900 border-b border-black text-[11px] font-bold uppercase text-slate-300 px-2 sm:px-3 py-1 flex items-center justify-between gap-1.5 sm:gap-2 rounded-none shrink-0 z-10 shadow-xs">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 text-[11px] font-bold text-slate-400 truncate">
-          <span className="w-36 sm:w-40 md:w-44 shrink-0 text-amber-300 font-black tracking-wide">DURUM</span>
+          <span className="w-40 sm:w-44 md:w-48 shrink-0 text-amber-300 font-black tracking-wide">DURUM</span>
           <span>|</span>
           <span className="w-36 sm:w-48 lg:w-56 shrink-0 truncate text-slate-300">MAKİNE</span>
           <span>|</span>
@@ -503,11 +549,14 @@ export default function App() {
         {/* 2. DEVREDEN AÇIK ARIZALAR BÖLÜMÜ (ALTA ÇEKİLDİ - 24:00 Öncesinden Devredenler) */}
         <div className="mt-auto pt-4 border-t-2 border-slate-800 w-full">
           <div className="bg-slate-900 border-y-2 border-amber-500/50 text-[11px] font-bold uppercase text-amber-400 px-2.5 sm:px-3 py-1 flex items-center justify-between tracking-wider shadow-xs">
-            <div className="flex items-center gap-2">
-              <span>DEVREDEN ARIZALAR (24:00 ÖNCESİNDEN DEVREDENLER • {devredenArizalar.length} KAYIT)</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span>DEVREDEN ARIZALAR ({devredenArizalar.length} KAYIT)</span>
+              <span className="hidden lg:inline text-[10px] text-amber-300/80 font-semibold normal-case">
+                • Müdahaledekiler En Üstte • 1. Mekanik | 2. Elektrik | 3. İSG | 4. Tekrar Eden | 5. Planlama
+              </span>
             </div>
             <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">
-              DEVREDEN (ALTA ÇEKİLDİ)
+              MÜDAHALE & TÜRE GÖRE SIRALI
             </span>
           </div>
 
@@ -542,7 +591,7 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2 font-mono text-xs text-slate-400">
           <span className="w-2 h-2 rounded-none bg-emerald-400 animate-pulse inline-block" />
-          <span>CANLI AKIŞ AKTİF</span>
+          <span>CANLI AKIŞ AKTİF {lastSyncTime ? `• SON EŞLEŞME: ${lastSyncTime}` : ''}</span>
         </div>
       </footer>
 
