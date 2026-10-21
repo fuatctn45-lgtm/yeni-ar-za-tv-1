@@ -460,7 +460,7 @@ export default function App() {
       {/* TABLO SÜTUN BAŞLIKLARI (Köşeli, Kompakt, Hizalı) */}
       <div className="bg-slate-900 border-b border-black text-[11px] font-bold uppercase text-slate-300 px-2 sm:px-3 py-1 flex items-center justify-between gap-1.5 sm:gap-2 rounded-none shrink-0 z-10 shadow-xs">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 text-[11px] font-bold text-slate-400 truncate">
-          <span className="w-28 sm:w-32 shrink-0 text-slate-400">DURUM</span>
+          <span className="w-36 sm:w-40 md:w-44 shrink-0 text-amber-300 font-black tracking-wide">DURUM</span>
           <span>|</span>
           <span className="w-36 sm:w-48 lg:w-56 shrink-0 truncate text-slate-300">MAKİNE</span>
           <span>|</span>

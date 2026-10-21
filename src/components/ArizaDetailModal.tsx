@@ -66,8 +66,33 @@ export const ArizaDetailModal: React.FC<ArizaDetailModalProps> = ({
                 <h2 className="text-lg lg:text-xl font-black text-white">
                   {ariza.machine}
                 </h2>
-                <span className="px-2.5 py-0.5 rounded text-xs font-black bg-slate-800 text-cyan-300 border border-cyan-800/80">
-                  {ariza.status}
+                <span
+                  className={`px-2.5 py-0.5 rounded-none text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 ${
+                    isWaitingParts
+                      ? 'bg-amber-950 text-amber-300 border-amber-400'
+                      : isUnderIntervention
+                      ? 'bg-sky-950 text-cyan-300 border-cyan-400'
+                      : isHandedOver
+                      ? 'bg-purple-950 text-purple-200 border-purple-400'
+                      : isResolved
+                      ? 'bg-emerald-950 text-emerald-300 border-emerald-400'
+                      : 'bg-rose-950 text-rose-300 border-rose-500'
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      isWaitingParts
+                        ? 'bg-amber-400'
+                        : isUnderIntervention
+                        ? 'bg-cyan-400 animate-ping'
+                        : isHandedOver
+                        ? 'bg-purple-400'
+                        : isResolved
+                        ? 'bg-emerald-400'
+                        : 'bg-rose-400 animate-pulse'
+                    }`}
+                  />
+                  {statusText}
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-mono mt-0.5">

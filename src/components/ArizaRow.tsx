@@ -50,6 +50,39 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
   const mutedTextColor = isDark ? 'text-white/90' : 'text-slate-950';
   const dividerColor = isDark ? 'text-white/35' : 'text-black/35';
 
+  // Durum Alanı Özel Dikkat Çekici Rozet Stili (Kullanıcı İsteği: "durum alanın farklı yap dikkat çekici olsun")
+  let statusBadgeStyle = {
+    container: 'bg-black text-rose-300 border-2 border-rose-500 shadow-sm',
+    dot: 'bg-rose-500',
+    ping: true,
+  };
+
+  if (isWaitingParts) {
+    statusBadgeStyle = {
+      container: 'bg-black text-amber-300 border-2 border-amber-400 shadow-sm ring-1 ring-amber-400/50',
+      dot: 'bg-amber-400',
+      ping: false,
+    };
+  } else if (isUnderIntervention) {
+    statusBadgeStyle = {
+      container: 'bg-black text-cyan-300 border-2 border-cyan-400 shadow-sm ring-1 ring-cyan-400/50',
+      dot: 'bg-cyan-400',
+      ping: true,
+    };
+  } else if (isHandedOver) {
+    statusBadgeStyle = {
+      container: 'bg-black text-purple-200 border-2 border-purple-400 shadow-sm ring-1 ring-purple-400/50',
+      dot: 'bg-purple-400',
+      ping: false,
+    };
+  } else if (isResolved) {
+    statusBadgeStyle = {
+      container: 'bg-black text-emerald-300 border-2 border-emerald-400 shadow-sm ring-1 ring-emerald-400/50',
+      dot: 'bg-emerald-400',
+      ping: false,
+    };
+  }
+
   return (
     <div
       onClick={() => onSelect(ariza)}
@@ -62,16 +95,24 @@ export const ArizaRow: React.FC<ArizaRowProps> = ({
     >
       {/* Sol Kısım: Durum + Makine İsmi + Ayırıcı + Açıklama + Varsa Log Özeti */}
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
-        {/* Durum Metni (Siyah kutu yok, logo yok, doğrudan düz yazı - yanıp sönme yok) */}
-        <div className="shrink-0 flex items-center w-28 sm:w-32">
+        {/* Durum Alanı (Farklı ve Dikkat Çekici Tasarım) */}
+        <div className="shrink-0 flex items-center w-36 sm:w-40 md:w-44">
           {isNewArrival && (
-            <span className="text-[11px] font-black uppercase mr-1">
-              [YENİ]
+            <span className="text-[10px] font-black uppercase mr-1 bg-red-600 text-white px-1.5 py-0.5 animate-pulse rounded-xs shadow-xs shrink-0">
+              YENİ
             </span>
           )}
-          <span className="text-[11px] font-bold uppercase tracking-wider truncate">
-            {statusText}
-          </span>
+          <div
+            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs font-black text-[10px] sm:text-[11px] tracking-wide uppercase max-w-full ${statusBadgeStyle.container}`}
+          >
+            <span className="relative flex h-2 w-2 shrink-0">
+              {statusBadgeStyle.ping && (
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${statusBadgeStyle.dot}`} />
+              )}
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${statusBadgeStyle.dot}`} />
+            </span>
+            <span className="truncate">{statusText}</span>
+          </div>
         </div>
 
         {/* Ayırıcı */}
